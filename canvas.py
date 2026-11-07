@@ -1,5 +1,5 @@
 """canvas.py - QGraphicsScene/View with grid, drag-drop, wire routing"""
-from PyQt5.QtWidgets import (QGraphicsScene, QGraphicsView, QMenu, QAction,QInputDialog)
+from PyQt5.QtWidgets import (QGraphicsScene, QGraphicsView, QMenu, QAction, QInputDialog, QUndoStack)
 from PyQt5.QtCore import Qt, QPointF, QRectF, pyqtSignal
 from PyQt5.QtGui import QPen, QBrush, QColor, QPainter, QTransform
 
@@ -8,6 +8,11 @@ from sequential_gates import ClockNode, FlipFlopBase
 from wire import Wire
 from notes import NoteItem
 from internal_structure_dialog import InternalStructureDialog
+from undo_commands import (
+    AddGateCommand, DeleteItemsCommand, MoveItemsCommand,
+    AddWireCommand, DeleteWireCommand, ConfigureGateCommand,
+    AddItemsCommand, AddNoteCommand
+)
 
 GRID = 20
 
@@ -24,6 +29,9 @@ class CircuitScene(QGraphicsScene):
         self.setBackgroundBrush(QBrush(QColor("#0d1117")))
         self.gates = []; self.wires = []; self.notes = []
         self._pending_src = None; self._temp_line = None
+        self.undo_stack = QUndoStack(self)
+        self._clipboard = None
+        self._drag_start_positions = None
 
     def set_theme(self, mode="dark"):
         """Dynamically switch canvas background and grid between dark and light themes."""
@@ -38,20 +46,31 @@ class CircuitScene(QGraphicsScene):
             self.grid_line_color = QColor("#141d2b")
         self.update()
 
-    def add_gate(self, gate_type, pos=None, size_config=None, label=""):
+    def add_gate(self, gate_type, pos=None, size_config=None, label="", use_undo=True):
         gate = create_gate(gate_type, label=label, size=size_config)
         gate.setPos(self._snap(pos or QPointF(0,0)))
-        self.addItem(gate); self.gates.append(gate)
-        self.circuit_changed.emit()
-        self.status_msg.emit(f"Added {gate.label.replace(chr(10), ' ')}")
+        clean_lbl = gate.label.replace('\n', ' ')
+        if use_undo and getattr(self, 'undo_stack', None) is not None:
+            cmd = AddGateCommand(self, gate, f"Add {clean_lbl}")
+            self.undo_stack.push(cmd)
+            self.status_msg.emit(f"Added {clean_lbl}")
+        else:
+            self.addItem(gate); self.gates.append(gate)
+            self.circuit_changed.emit()
+            self.status_msg.emit(f"Added {clean_lbl}")
         return gate
 
-    def add_note(self, text=None, pos=None):
+    def add_note(self, text=None, pos=None, use_undo=True):
         note = NoteItem(text)
         note.setPos(self._snap(pos or QPointF(0,0)))
-        self.addItem(note); self.notes.append(note)
-        self.circuit_changed.emit()
-        self.status_msg.emit("Note added — double-click to edit")
+        if use_undo and getattr(self, 'undo_stack', None) is not None:
+            cmd = AddNoteCommand(self, note, "Add Note")
+            self.undo_stack.push(cmd)
+            self.status_msg.emit("Note added — double-click to edit")
+        else:
+            self.addItem(note); self.notes.append(note)
+            self.circuit_changed.emit()
+            self.status_msg.emit("Note added — double-click to edit")
         return note
 
     def _snap(self, pos):
@@ -73,13 +92,27 @@ class CircuitScene(QGraphicsScene):
                 self.status_msg.emit("Wire already exists"); return
             if dst.wires:
                 self.status_msg.emit("Input already connected"); return
-            wire = Wire(src, dst)
-            self.addItem(wire); self.wires.append(wire)
-            self.circuit_changed.emit()
+            
+            if getattr(self, 'undo_stack', None) is not None:
+                cmd = AddWireCommand(self, src, dst, "Add Wire")
+                self.undo_stack.push(cmd)
+            else:
+                wire = Wire(src, dst)
+                self.addItem(wire); self.wires.append(wire)
+                self.circuit_changed.emit()
             self.status_msg.emit("Wire connected ✓")
 
     def _cancel_temp(self):
         if self._temp_line: self.removeItem(self._temp_line); self._temp_line=None
+
+    def mousePressEvent(self, e):
+        super().mousePressEvent(e)
+        if e.button() == Qt.LeftButton:
+            self._drag_start_positions = {
+                item: item.pos()
+                for item in self.selectedItems()
+                if isinstance(item, (GateItem, NoteItem))
+            }
 
     def mouseMoveEvent(self, e):
         if self._pending_src:
@@ -89,32 +122,156 @@ class CircuitScene(QGraphicsScene):
                                            QPen(QColor("#4fc3f7"),1,Qt.DashLine))
         super().mouseMoveEvent(e)
 
+    def mouseReleaseEvent(self, e):
+        super().mouseReleaseEvent(e)
+        if hasattr(self, '_drag_start_positions') and self._drag_start_positions:
+            move_records = []
+            for item, old_pos in self._drag_start_positions.items():
+                if item.scene() == self:
+                    snapped = self._snap(item.pos())
+                    if (snapped - old_pos).manhattanLength() > 1.0:
+                        item.setPos(snapped)
+                        move_records.append((item, old_pos, snapped))
+            self._drag_start_positions = None
+            if move_records:
+                desc = f"Move {len(move_records)} Item(s)" if len(move_records) > 1 else f"Move {getattr(move_records[0][0], 'label', 'Item')}"
+                self.undo_stack.push(MoveItemsCommand(self, move_records, desc))
+
     def keyPressEvent(self, e):
-        if e.key()==Qt.Key_Escape:
-            self._pending_src=None; self._cancel_temp()
-        elif e.key()==Qt.Key_Delete:
+        if e.key() == Qt.Key_Escape:
+            if self._pending_src:
+                self._pending_src = None
+                self._cancel_temp()
+                self.status_msg.emit("Wire connection cancelled")
+            else:
+                self.clearSelection()
+            return
+        elif e.key() in (Qt.Key_Delete, Qt.Key_Backspace):
             self.delete_selected()
+            return
         super().keyPressEvent(e)
 
-    def delete_selected(self):
-        for item in self.selectedItems():
-            if isinstance(item, GateItem): self._remove_gate(item)
-            elif isinstance(item, Wire):   self._remove_wire(item)
-            elif isinstance(item, NoteItem): self._remove_note(item)
-        self.circuit_changed.emit()
+    def select_all(self):
+        """Select all components, wires, and notes on the canvas."""
+        for item in self.items():
+            if isinstance(item, (GateItem, Wire, NoteItem)):
+                item.setSelected(True)
+
+    def copy_selected(self):
+        """Copy selected gates and their internal interconnecting wires to the clipboard."""
+        selected_gates = [i for i in self.selectedItems() if isinstance(i, GateItem)]
+        selected_notes = [i for i in self.selectedItems() if isinstance(i, NoteItem)]
+        if not selected_gates and not selected_notes:
+            return
+        gate_dicts = [g.to_dict() for g in selected_gates]
+        gate_ids = {g.gate_id for g in selected_gates}
+        wire_data = []
+        for w in self.wires:
+            if w.src_pin.parent_gate.gate_id in gate_ids and w.dst_pin.parent_gate.gate_id in gate_ids:
+                wire_data.append(w.to_dict())
+        note_dicts = [{'text': n.text_item.toPlainText() if hasattr(n, 'text_item') else '', 'x': n.pos().x(), 'y': n.pos().y()} for n in selected_notes]
+        self._clipboard = {
+            'gates': gate_dicts,
+            'wires': wire_data,
+            'notes': note_dicts,
+            'paste_count': 0
+        }
+        self.status_msg.emit(f"Copied {len(selected_gates)} component(s)")
+
+    def paste(self):
+        """Paste components from the clipboard, offset by 20px."""
+        if not hasattr(self, '_clipboard') or not self._clipboard:
+            return
+        self._clipboard['paste_count'] += 1
+        offset = 20 * self._clipboard['paste_count']
+
+        for i in self.selectedItems():
+            i.setSelected(False)
+
+        new_gates = []
+        old_to_new_gate = {}
+        for d in self._clipboard['gates']:
+            cd = dict(d)
+            cd['x'] = d['x'] + offset
+            cd['y'] = d['y'] + offset
+            g = GateItem.from_dict(cd)
+            g.gate_id = id(g)
+            old_to_new_gate[d['gate_id']] = g
+            new_gates.append(g)
+
+        new_wires = []
+        for wd in self._clipboard.get('wires', []):
+            sg = old_to_new_gate.get(wd['src_gate_id'])
+            dg = old_to_new_gate.get(wd['dst_gate_id'])
+            if sg and dg:
+                si, di = wd['src_pin_idx'], wd['dst_pin_idx']
+                if si < len(sg.output_pins) and di < len(dg.input_pins):
+                    w = Wire(sg.output_pins[si], dg.input_pins[di])
+                    new_wires.append(w)
+
+        new_notes = []
+        for nd in self._clipboard.get('notes', []):
+            note = NoteItem(nd.get('text', ''))
+            note.setPos(nd['x'] + offset, nd['y'] + offset)
+            new_notes.append(note)
+
+        cmd = AddItemsCommand(self, new_gates, new_wires, new_notes, "Paste Components")
+        self.undo_stack.push(cmd)
+
+        for g in new_gates: g.setSelected(True)
+        for n in new_notes: n.setSelected(True)
+
+    def cut_selected(self):
+        """Cut selected components to clipboard."""
+        self.copy_selected()
+        self.delete_selected()
+
+    def duplicate_selected(self):
+        """Duplicate selected items immediately offset by 20px."""
+        self.copy_selected()
+        self.paste()
+
+    def delete_selected(self, use_undo=True):
+        items = list(self.selectedItems())
+        if not items:
+            return
+        if use_undo and getattr(self, 'undo_stack', None) is not None:
+            desc = f"Delete {len(items)} Item(s)"
+            if len(items) == 1:
+                item = items[0]
+                if isinstance(item, GateItem): desc = f"Delete {item.label.replace(chr(10), ' ')}"
+                elif isinstance(item, Wire): desc = "Delete Wire"
+                elif isinstance(item, NoteItem): desc = "Delete Note"
+            self.undo_stack.push(DeleteItemsCommand(self, items, desc))
+        else:
+            for item in items:
+                if isinstance(item, GateItem): self._remove_gate(item)
+                elif isinstance(item, Wire):   self._remove_wire(item)
+                elif isinstance(item, NoteItem): self._remove_note(item)
+            self.circuit_changed.emit()
 
     def _remove_gate(self, gate):
-        for pin in gate.input_pins+gate.output_pins:
-            for w in list(pin.wires): self._remove_wire(w)
-        self.removeItem(gate)
-        if gate in self.gates: self.gates.remove(gate)
+        if getattr(self, 'undo_stack', None) is not None:
+            clean_lbl = gate.label.replace('\n', ' ')
+            self.undo_stack.push(DeleteItemsCommand(self, [gate], f"Delete {clean_lbl}"))
+        else:
+            for pin in gate.input_pins+gate.output_pins:
+                for w in list(pin.wires): self._remove_wire(w)
+            self.removeItem(gate)
+            if gate in self.gates: self.gates.remove(gate)
+            self.circuit_changed.emit()
+
     def _set_input_count(self, gate):
         n, ok = QInputDialog.getInt(
             None, f"Configure {gate.gate_type} Gate", "Number of inputs (2-8):",
             value=len(gate.input_pins), min=2, max=8)
-        if ok:
-            gate.set_input_count(n)
-            self.circuit_changed.emit()
+        if ok and n != len(gate.input_pins):
+            if getattr(self, 'undo_stack', None) is not None:
+                cmd = ConfigureGateCommand(self, gate, 'inputs', len(gate.input_pins), n, f"Set {gate.gate_type} to {n} inputs")
+                self.undo_stack.push(cmd)
+            else:
+                gate.set_input_count(n)
+                self.circuit_changed.emit()
             self.status_msg.emit(f"Configured {gate.gate_type} to {n} inputs")
 
     def _configure_msi_size(self, gate):
@@ -132,9 +289,13 @@ class CircuitScene(QGraphicsScene):
             curr_idx,
             False
         )
-        if ok and choice:
-            gate.configure_size(choice)
-            self.circuit_changed.emit()
+        if ok and choice and choice != curr_val:
+            if getattr(self, 'undo_stack', None) is not None:
+                cmd = ConfigureGateCommand(self, gate, 'msi_size', curr_val, choice, f"Configure {gt} to {choice}")
+                self.undo_stack.push(cmd)
+            else:
+                gate.configure_size(choice)
+                self.circuit_changed.emit()
             self.status_msg.emit(f"Configured {gt} to {choice}")
 
     def _prompt_radix_bit_width(self, gate):
@@ -148,28 +309,44 @@ class CircuitScene(QGraphicsScene):
                 f"Select Bus Bit Width (2 to 16 bits) for {gate.label}:",
                 value=gate.bit_width, min=2, max=16, step=1
             )
-            if ok:
-                gate.set_bit_width(n)
-                self.circuit_changed.emit()
+            if ok and n != gate.bit_width:
+                if getattr(self, 'undo_stack', None) is not None:
+                    cmd = ConfigureGateCommand(self, gate, 'bit_width', gate.bit_width, n, f"Set {gate.label} to {n}-bit bus")
+                    self.undo_stack.push(cmd)
+                else:
+                    gate.set_bit_width(n)
+                    self.circuit_changed.emit()
                 self.status_msg.emit(f"Configured {gate.label} to {n}-bit bus")
         except Exception as err:
             self.status_msg.emit(f"Error configuring bus width: {err}")
+
     def _open_ic_manual(self, ic_type="7408"):
         from ic_manual_dialog import ICDatasheetDialog
         main_win = self.views()[0].window() if self.views() else None
         ICDatasheetDialog(target_ic=ic_type, main_window=main_win, parent=main_win).exec_()
 
     def _remove_wire(self, wire):
-        wire.remove()
-        if wire in self.wires: self.wires.remove(wire)
+        if getattr(self, 'undo_stack', None) is not None:
+            self.undo_stack.push(DeleteWireCommand(self, wire, "Delete Wire"))
+        else:
+            wire.remove()
+            if wire in self.wires: self.wires.remove(wire)
+            self.circuit_changed.emit()
 
     def _remove_note(self, note):
-        self.removeItem(note)
-        if note in self.notes: self.notes.remove(note)
+        if getattr(self, 'undo_stack', None) is not None:
+            self.undo_stack.push(DeleteItemsCommand(self, [note], "Delete Note"))
+        else:
+            self.removeItem(note)
+            if note in self.notes: self.notes.remove(note)
+            self.circuit_changed.emit()
 
     def clear_circuit(self):
         for item in self.items(): self.removeItem(item)
         self.gates.clear(); self.wires.clear(); self.notes.clear()
+        self._pending_src=None; self._temp_line=None
+        if getattr(self, 'undo_stack', None) is not None:
+            self.undo_stack.clear()
         self._pending_src=None; self._temp_line=None
 
     def contextMenuEvent(self, e):

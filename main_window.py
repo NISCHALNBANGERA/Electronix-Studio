@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import (
     QFileDialog, QMessageBox, QFrame, QMenu, QDockWidget,
     QComboBox, QScrollArea, QLineEdit, QCompleter,
     QShortcut, QToolButton, QSizePolicy, QApplication,
-    QSplitter, QGridLayout
+    QSplitter, QGridLayout, QTextEdit, QPlainTextEdit
 )
 from PyQt5.QtCore import Qt, QMimeData, QTimer, QPointF, QEvent, pyqtSlot
 from PyQt5.QtGui import (QFont, QColor, QPalette, QDrag, QPixmap,
@@ -488,10 +488,24 @@ class MainWindow(QMainWindow):
         self._btn_new = action_btn("📄 New", "New Project (Ctrl+N)", self._new_circuit)
         self._btn_open = action_btn("📂 Open", "Open Project (Ctrl+O)", self._open_project)
         self._btn_save = action_btn("💾 Save", "Save Project (Ctrl+S)", self._save_project)
-        self._btn_run = action_btn("▶ Run", "Run Simulation Cycle (F5)", self._run_simulation)
+
+        # Undo / Redo Toolbar buttons with live enabled/disabled sync
+        self._btn_undo = action_btn("↶ Undo", "Undo (Ctrl+Z)", self.scene.undo_stack.undo)
+        self._btn_redo = action_btn("↷ Redo", "Redo (Ctrl+Y / Ctrl+Shift+Z)", self.scene.undo_stack.redo)
+        self.scene.undo_stack.canUndoChanged.connect(self._btn_undo.setEnabled)
+        self.scene.undo_stack.canRedoChanged.connect(self._btn_redo.setEnabled)
+        self.scene.undo_stack.undoTextChanged.connect(
+            lambda t: self._btn_undo.setToolTip(f"{t} (Ctrl+Z)" if t else "Undo (Ctrl+Z)"))
+        self.scene.undo_stack.redoTextChanged.connect(
+            lambda t: self._btn_redo.setToolTip(f"{t} (Ctrl+Y)" if t else "Redo (Ctrl+Y)"))
+        self._btn_undo.setEnabled(self.scene.undo_stack.canUndo())
+        self._btn_redo.setEnabled(self.scene.undo_stack.canRedo())
+
+        self._btn_run = action_btn("▶ Run", "Run Simulation Cycle (F5) / Pause (Space)", self._run_simulation)
         self._btn_anim = action_btn("✨ Animate", "Animate Signal Flow (F9)", self._run_animated)
 
-        for b in (self._btn_palette, self._btn_new, self._btn_open, self._btn_save, self._btn_run, self._btn_anim):
+        for b in (self._btn_palette, self._btn_new, self._btn_open, self._btn_save,
+                  self._btn_undo, self._btn_redo, self._btn_run, self._btn_anim):
             lay.addWidget(b)
 
         lay.addWidget(self._make_vsep())
@@ -529,10 +543,11 @@ class MainWindow(QMainWindow):
         self._quick_search.returnPressed.connect(lambda: self._on_quick_add_activated(self._quick_search.text()))
         lay.addWidget(self._quick_search)
 
-        # Shortcut Ctrl+Space to focus quick search
+        # Shortcuts for editing & simulation
         QShortcut(QKeySequence("Ctrl+Space"), self, activated=self._focus_quick_search)
-        # Shortcut Ctrl+B to toggle component palette
         QShortcut(QKeySequence("Ctrl+B"), self, activated=self._toggle_left_palette)
+        QShortcut(QKeySequence("Ctrl+D"), self, activated=self.scene.duplicate_selected)
+        QShortcut(QKeySequence(Qt.Key_Space), self, activated=self._toggle_simulation_pause)
 
         lay.addStretch()
 
@@ -844,15 +859,32 @@ class MainWindow(QMainWindow):
 
         # Edit
         em = mb.addMenu("Edit")
-        em.addAction(self._act("Delete Selected",   "Del",            self.scene.delete_selected))
-        em.addAction(self._act("Select All",        "Ctrl+A",         lambda: [i.setSelected(True) for i in self.scene.items()]))
-        em.addAction(self._act("Clear Canvas",      None,             self._clear_circuit))
+        self._act_undo = self.scene.undo_stack.createUndoAction(self, "Undo")
+        self._act_undo.setShortcut(QKeySequence("Ctrl+Z"))
+        em.addAction(self._act_undo)
+
+        self._act_redo = self.scene.undo_stack.createRedoAction(self, "Redo")
+        self._act_redo.setShortcuts([QKeySequence("Ctrl+Y"), QKeySequence("Ctrl+Shift+Z")])
+        em.addAction(self._act_redo)
+
         em.addSeparator()
+        em.addAction(self._act("Cut",               "Ctrl+X",         self.scene.cut_selected))
+        em.addAction(self._act("Copy",              "Ctrl+C",         self.scene.copy_selected))
+        em.addAction(self._act("Paste",             "Ctrl+V",         self.scene.paste))
+        em.addAction(self._act("Duplicate",         "Ctrl+D",         self.scene.duplicate_selected))
+        em.addSeparator()
+        em.addAction(self._act("Select All",        "Ctrl+A",         self.scene.select_all))
+        act_del = self._act("Delete",               "Del",            self.scene.delete_selected)
+        act_del.setShortcuts([QKeySequence("Delete"), QKeySequence("Backspace")])
+        em.addAction(act_del)
+        em.addSeparator()
+        em.addAction(self._act("Clear Canvas",      None,             self._clear_circuit))
         em.addAction(self._act("Add Reference Note","Ctrl+Shift+N",   self._add_note))
 
         # Simulate
         sm = mb.addMenu("Simulate")
         sm.addAction(self._act("Run Simulation",    "F5",             self._run_simulation))
+        sm.addAction(self._act("Pause / Resume",    "Space",          self._toggle_simulation_pause))
         sm.addAction(self._act("Animated Run",      "F9",             self._run_animated))
         sm.addSeparator()
         sm.addAction(self._act("Truth Table",       "F6",             self._show_truth_table))
@@ -865,7 +897,7 @@ class MainWindow(QMainWindow):
         tm.addAction(self._act("K-Map Solver",      "Ctrl+K",         self._show_kmap))
         tm.addAction(self._act("Code Converter",    "Ctrl+T",         self._show_converter))
         tm.addAction(self._act("MOSFET Physics",    "Ctrl+M",         self._show_mosfet_simulator))
-        tm.addAction(self._act("74xx IC Manual",    "Ctrl+D",         lambda: self._show_ic_manual("7408")))
+        tm.addAction(self._act("74xx IC Manual",    "Ctrl+Shift+D",   lambda: self._show_ic_manual("7408")))
         tm.addSeparator()
         tm.addAction(self._act("AI Assistant",      "Ctrl+I",         self._toggle_chatbot))
         tm.addAction(self._act("Project Browser",   "Ctrl+P",         self._toggle_browser))
@@ -952,6 +984,24 @@ class MainWindow(QMainWindow):
         self._update_status_right()
 
     # ── Simulation Triggers ───────────────────────────────────────────
+    def _toggle_simulation_pause(self):
+        """Toggle simulation timer run/pause with Spacebar."""
+        focus_widget = QApplication.focusWidget()
+        if focus_widget and isinstance(focus_widget, (QLineEdit, QTextEdit, QPlainTextEdit)):
+            return
+        if hasattr(self, 'scene') and self.scene:
+            for item in self.scene.items():
+                if getattr(item, '_editing', False):
+                    return
+        if hasattr(self, '_sim_timer'):
+            if self._sim_timer.isActive():
+                self._sim_timer.stop()
+                self._status_lbl.setText("⏸ Simulation Paused (Press Space to Resume)")
+            else:
+                self._sim_timer.start()
+                self._auto_simulate()
+                self._status_lbl.setText("▶ Simulation Resumed (Press Space to Pause)")
+
     def _auto_simulate(self):
         if self.scene.gates:
             try:
