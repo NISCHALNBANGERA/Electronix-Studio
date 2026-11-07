@@ -11,15 +11,21 @@ An integrated, professional Electronic Design Automation (EDA) and educational w
 
 ## 🎯 Why We Developed This Project
 
-In conventional undergraduate Computer Science and Electrical Engineering education, learning digital electronics is often fragmented across multiple disconnected tools:
+In conventional undergraduate Computer Science and Electrical Engineering education, learning digital electronics is often abstract and fragmented across disconnected tools:
 
-1. **Abstract Simulators:** Classical tools like Logisim treat logic gates as opaque "black boxes," leaving students disconnected from how circuits actually function at the silicon transistor level.
-2. **Physical Breadboarding Challenges:** When moving to physical lab breadboards with 74xx IC chips, students frequently face wiring fatigue, pinout confusion, and difficult troubleshooting with no diagnostic assistance.
-3. **The HDL Disconnect:** Writing Verilog or VHDL is often taught as an isolated programming exercise, disconnected from visual schematics.
-4. **Lack of Instant Help:** When a student's circuit outputs `0` unexpectedly or fails to oscillate, there is rarely an immediate tutor available to diagnose the topology.
+1. **The Need to Truly Visualize Digital Electronics:**  
+   In textbooks and traditional breadboard labs, electrical signals and binary data (`0`s and `1`s) are **completely invisible**. Students are forced to memorize Boolean formulas, truth tables, and timing diagrams without ever seeing how signals actually travel, propagate, and settle. We developed this platform first and foremost to **bring digital electronics to life visually** — allowing learners to literally watch current flow, observe dynamic color-coded signal states across every wire, see clock pulses oscillate in real-time, and watch MOSFET switches open and close inside logic gates.
+2. **Abstract Simulators as "Black Boxes":**  
+   Classical software treats logic gates as opaque black-box symbols, leaving students disconnected from how circuits actually function at the silicon and CMOS transistor level.
+3. **Physical Breadboarding Challenges:**  
+   When moving to physical lab breadboards with 74xx IC chips, students frequently face wiring fatigue, pinout confusion, and difficult troubleshooting with zero real-time diagnostic feedback.
+4. **The HDL Disconnect:**  
+   Writing Verilog or VHDL is often taught as an isolated programming exercise, disconnected from visual schematics and hardware structures.
+5. **Lack of Instant Guidance:**  
+   When a student's circuit outputs `0` unexpectedly or fails to oscillate, there is rarely an immediate tutor available to diagnose the topology and explain why.
 
-### Our Vision
-We developed **Digital Electronics Design & Learning Studio** as an all-in-one Project-Based Learning (PBL) workbench that unifies the complete 4-tier abstraction hierarchy of digital systems into a single intuitive GUI:
+### Our Vision: Complete Visual Learning
+We developed **Digital Electronics Design & Learning Studio** as an all-in-one Project-Based Learning (PBL) workbench that unifies visualization with the complete 4-tier abstraction hierarchy of digital systems into a single intuitive GUI:
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -217,14 +223,11 @@ You can compile this project into a standalone Windows `.exe` application that r
 
 ---
 
-## 👥 Authors & Team Credits
+## 👤 Author & Developer
 
 Developed with ❤️ as a Project-Based Learning (PBL) initiative by:
 
 * **Nischal N Bangera**
-* **Nived S**
-* **Harsha Patel T**
-* **Akilesh L**
 
 ---
 
