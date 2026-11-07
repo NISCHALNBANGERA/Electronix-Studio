@@ -27,15 +27,15 @@ def make_splash():
     p.setPen(QPen(QColor("#1f6feb44"), 1));  p.drawRect(4, 4, 632, 352)
 
     # ── Main title: two big lines ────────────────────────────────
-    # Line 1: Digital Electronics (Cyan #58a6ff, font size 28, bold)
-    p.setFont(QFont("Consolas", 28, QFont.Bold))
+    # Line 1: Electronix Studio (Cyan #58a6ff, font size 30, bold)
+    p.setFont(QFont("Consolas", 30, QFont.Bold))
     p.setPen(QColor("#58a6ff"))
-    p.drawText(0, 22, 640, 55, Qt.AlignCenter, "Digital Electronics")
+    p.drawText(0, 20, 640, 55, Qt.AlignCenter, "Electronix Studio")
 
-    # Line 2: Design & Learning Studio (Green #3fb950, font size 22, bold)
-    p.setFont(QFont("Consolas", 22, QFont.Bold))
+    # Line 2: Digital Design & Learning Suite (Green #3fb950, font size 20, bold)
+    p.setFont(QFont("Consolas", 20, QFont.Bold))
     p.setPen(QColor("#3fb950"))
-    p.drawText(0, 78, 640, 50, Qt.AlignCenter, "Design & Learning Studio")
+    p.drawText(0, 78, 640, 50, Qt.AlignCenter, "Digital Design & Learning Suite")
 
     # Thin divider under title
     p.setPen(QPen(QColor("#30363d"), 1))
@@ -86,13 +86,13 @@ def make_splash():
 def main():
     try:
         import ctypes
-        myappid = 'digital.electronics.eda.studio.v2'
+        myappid = 'electronix.studio.eda.workbench'
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     except Exception:
         pass
 
     app = QApplication(sys.argv)
-    app.setApplicationName("Logic Simulator")
+    app.setApplicationName("Electronix Studio")
     app.setStyle("Fusion")
 
     # Set Application & Window Icon

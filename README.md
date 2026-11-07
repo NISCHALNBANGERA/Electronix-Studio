@@ -1,4 +1,4 @@
-# Digital Electronics Design & Learning Studio (EDA Studio v2.0)
+# Electronix Studio (EDA Studio v2.0)
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![GUI](https://img.shields.io/badge/GUI-PyQt5-green.svg?logo=qt&logoColor=white)](https://riverbankcomputing.com/software/pyqt/)
@@ -25,7 +25,7 @@ In conventional undergraduate Computer Science and Electrical Engineering educat
    When a student's circuit outputs `0` unexpectedly or fails to oscillate, there is rarely an immediate tutor available to diagnose the topology and explain why.
 
 ### Our Vision: Complete Visual Learning
-We developed **Digital Electronics Design & Learning Studio** as an all-in-one Project-Based Learning (PBL) workbench that unifies visualization with the complete 4-tier abstraction hierarchy of digital systems into a single intuitive GUI:
+We developed **Electronix Studio** as an all-in-one Project-Based Learning (PBL) workbench that unifies visualization with the complete 4-tier abstraction hierarchy of digital systems into a single intuitive GUI:
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -139,8 +139,8 @@ python-pbl/
 ### Step 1: Clone the Repository
 Open your terminal (or Command Prompt / PowerShell) and run:
 ```bash
-git clone https://github.com/NISCHALNBANGERA/DIGITAL---ELECTRONICS.git
-cd DIGITAL---ELECTRONICS
+git clone https://github.com/NISCHALNBANGERA/Electronix-Studio.git
+cd Electronix-Studio
 ```
 
 ### Step 2: Create a Virtual Environment (Recommended)
@@ -218,8 +218,8 @@ You can compile this project into a standalone Windows `.exe` application that r
 1. Double-click the provided **`build_desktop_app.bat`** file in the project folder.
 2. The script will automatically:
    * Install `PyInstaller` if not present.
-   * Bundle your Python code, PyQt5 runtimes, icons, and assets into `dist\DigitalElectronicsStudio\`.
-   * Automatically place a **"Digital Electronics Studio"** shortcut with custom icon on your Windows Desktop.
+   * Bundle your Python code, PyQt5 runtimes, icons, and assets into `dist\ElectronixStudio\`.
+   * Automatically place an **"Electronix Studio"** shortcut with custom icon on your Windows Desktop.
 
 ---
 

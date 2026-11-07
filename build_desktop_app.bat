@@ -1,6 +1,6 @@
 @echo off
 echo ========================================================
-echo  Building Digital Electronics Studio Desktop Application
+echo  Building Electronix Studio Desktop Application
 echo ========================================================
 echo.
 
@@ -12,7 +12,7 @@ call .\.venv\Scripts\python.exe -m pip install pyinstaller
 echo.
 echo [2/3] Bundling application into standalone desktop app...
 call .\.venv\Scripts\pyinstaller --noconfirm --onedir --windowed ^
-    --name "DigitalElectronicsStudio" ^
+    --name "ElectronixStudio" ^
     --icon "app_icon.ico" ^
     --add-data "app_icon.ico;." ^
     --add-data "app_icon.png;." ^
@@ -22,13 +22,13 @@ call .\.venv\Scripts\pyinstaller --noconfirm --onedir --windowed ^
 :: 3. Create Desktop Shortcut
 echo.
 echo [3/3] Creating shortcut on your Windows Desktop...
-powershell -Command "$WshShell = New-Object -ComObject WScript.Shell; $d = [Environment]::GetFolderPath('Desktop'); $s = $WshShell.CreateShortcut(\"$d\Digital Electronics Studio.lnk\"); $s.TargetPath = (Convert-Path '.\dist\DigitalElectronicsStudio\DigitalElectronicsStudio.exe'); $s.WorkingDirectory = (Convert-Path '.\dist\DigitalElectronicsStudio'); $s.IconLocation = (Convert-Path '.\dist\DigitalElectronicsStudio\DigitalElectronicsStudio.exe') + ',0'; $s.Description = 'Digital Electronics Design & Learning Studio'; $s.Save()"
+powershell -Command "$WshShell = New-Object -ComObject WScript.Shell; $d = [Environment]::GetFolderPath('Desktop'); $s = $WshShell.CreateShortcut(\"$d\Electronix Studio.lnk\"); $s.TargetPath = (Convert-Path '.\dist\ElectronixStudio\ElectronixStudio.exe'); $s.WorkingDirectory = (Convert-Path '.\dist\ElectronixStudio'); $s.IconLocation = (Convert-Path '.\dist\ElectronixStudio\ElectronixStudio.exe') + ',0'; $s.Description = 'Electronix Studio - Digital Design & Learning Suite'; $s.Save()"
 
 :: 4. Finish
 echo.
 echo ========================================================
 echo  Build Complete!
-echo  A shortcut named "Digital Electronics Studio" 
+echo  A shortcut named "Electronix Studio" 
 echo  has been placed directly on your Windows Desktop!
 echo ========================================================
 pause

@@ -431,8 +431,56 @@ Modern digital electronics are constructed using CMOS (Complementary Metal-Oxide
   - Input = `1`: PMOS OFF, NMOS ON $\\rightarrow$ Output pulled to GND (`0`).
   - **Zero static power dissipation!**
 
-#### 3. Interactive Physics Visualizer
-- In the Tools menu, open **`🔬 MOSFET Physics Studio`** to explore interactive 2D cross-sections, electron drift animation, channel inversion, and pinch-off curves!""",
+#### 3. Interactive Physics Visualizer & Analog Solver
+- In the Tools menu, open **`🔬 MOSFET Physics Studio`** (`Ctrl+M`) to explore interactive 2D cross-sections, electron drift animation, channel inversion, and pinch-off curves!
+- Open **`📐 Analog MOSFET Solver`** (`Ctrl+Shift+M`) or right-click any NMOS/PMOS on the canvas to calculate continuous Q-points ($V_{GS}, V_{DS}, I_D$), region verification (Saturation vs Triode), small-signal AC parameters ($g_m, r_o, A_v$), and view step-by-step mathematical derivations!""",
+    },
+
+    {
+        'id': 'analog_mosfet_biasing',
+        'title': 'Analog MOSFET Biasing & Small-Signal Amplifier Analysis',
+        'category': 'THEORY',
+        'phrases': [
+            "how to bias a mosfet amplifier",
+            "mosfet q point saturation cutoff triode",
+            "common source amplifier gain gm ro av",
+            "step by step mosfet circuit problem solver",
+            "drain current quadratic equation derivation",
+        ],
+        'patterns': [
+            r'analog|biasing|q-?point|saturation|triode|cutoff',
+            r'common\s*source|source\s*follower|common\s*gate',
+            r'transconductance|small\s*signal|g_m|r_o',
+        ],
+        'content': """### 📐 Analog MOSFET Biasing & Small-Signal Analysis
+
+Our EDA Studio features a comprehensive **Analog MOSFET Analyzer & Circuit Problem Solver** (`Ctrl+Shift+M` or right-click any NMOS/PMOS on canvas).
+
+---
+
+#### 1. Operating Regions (Enhancement NMOS)
+- **Cutoff:** $V_{GS} < V_{TH} \\implies I_D = 0$
+- **Triode / Linear:** $V_{GS} \\ge V_{TH}$ and $V_{DS} < V_{OV} = V_{GS} - V_{TH}$
+  $$I_D = K_n [2(V_{GS} - V_{TH})V_{DS} - V_{DS}^2]$$
+- **Saturation (Active):** $V_{GS} \\ge V_{TH}$ and $V_{DS} \\ge V_{OV}$
+  $$I_D = K_n (V_{GS} - V_{TH})^2 (1 + \\lambda V_{DS})$$
+
+#### 2. Four-Resistor Voltage Divider Bias
+- Input Thevenin: $V_G = V_{DD} \\cdot \\frac{R_2}{R_1 + R_2}$, $R_{TH} = R_1 \\parallel R_2$.
+- Gate-to-Source Loop: $V_{GS} = V_G - I_D R_S$.
+- Quadratic in $V_{OV}$: $K_n R_S V_{OV}^2 + V_{OV} - (V_G - V_{TH}) = 0$.
+- The negative root is discarded because $V_{GS} < V_{TH}$ contradicts channel formation.
+
+#### 3. Small-Signal Parameters & Topologies
+- **Transconductance:** $g_m = 2 K_n V_{OV} = \\frac{2 I_D}{V_{OV}} = 2 \\sqrt{K_n I_D}$
+- **Output Resistance:** $r_o = \\frac{1}{\\lambda I_D}$
+- **Common Source (CS):** $A_v = -g_m (R_D \\parallel r_o)$ (with bypass cap $C_S$) or $A_v \\approx \\frac{-g_m R_D}{1 + g_m R_S}$ (unbypassed)
+- **Common Drain (CD / Source Follower):** $A_v = \\frac{g_m (R_S \\parallel r_o)}{1 + g_m (R_S \\parallel r_o)} \\approx +1$, low $R_{out} \\approx 1/g_m$
+- **Common Gate (CG):** Non-inverting gain $A_v = +g_m (R_D \\parallel r_o)$, low input impedance $R_{in} \\approx 1/g_m$
+
+#### 4. Features in EDA Studio
+- Launch via **Right Utility Bar (`📐 Analog`)**, **Tools Menu (`Ctrl+Shift+M`)**, or **Right-Click NMOS/PMOS on Canvas**.
+- Includes **Coursework Presets**, **Matplotlib Characteristic Curves & Q-Point Tracker**, **Amplifier Design Synthesis**, and **Step-by-Step Mathematical Derivations with Copy-to-Clipboard**!""",
     },
 
     {

@@ -39,6 +39,7 @@ from ai_chatbot import ChatbotPanel
 from project_browser import ProjectBrowserPanel
 from signal_animator import SignalAnimator
 from mosfet_simulator import MosfetSimulatorDialog
+from analog_mosfet_solver import AnalogMosfetSolverDialog
 from ic_manual_dialog import ICDatasheetDialog
 
 ensure_projects_dir()
@@ -308,7 +309,7 @@ class PaletteAccordionGroup(QWidget):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Digital Logic Simulator — EDA Studio")
+        self.setWindowTitle("Electronix Studio — EDA Workbench")
         self.setMinimumSize(1200, 750)
         self._current_file = None
         self._anim_speed = 'medium'
@@ -645,6 +646,7 @@ class MainWindow(QMainWindow):
         self._btn_kmap = tool_btn("🗺️\nK-Map", "K-Map Visual Minimizer (Ctrl+K)", self._show_kmap)
         self._btn_conv = tool_btn("⇄\nCode", "Digital Code System Converter", self._show_converter)
         self._btn_mosfet = tool_btn("🔬\nMOS", "MOSFET Physics Studio (Ctrl+M)", self._show_mosfet_simulator)
+        self._btn_analog = tool_btn("📐\nAnalog", "Analog MOSFET Analyzer & Circuit Solver (Ctrl+Shift+M)", self._show_analog_mosfet_solver)
         self._btn_ic = tool_btn("📖\n74xx", "74xx Series IC Datasheet Manual (Ctrl+D)", lambda: self._show_ic_manual("7408"))
         self._btn_notes = tool_btn("📝\nNote", "Add Reference Note to Canvas (Ctrl+Shift+N)", self._add_note)
         self._btn_proj = tool_btn("📁\nFiles", "Toggle Visual Project Browser", self._toggle_browser)
@@ -897,6 +899,7 @@ class MainWindow(QMainWindow):
         tm.addAction(self._act("K-Map Solver",      "Ctrl+K",         self._show_kmap))
         tm.addAction(self._act("Code Converter",    "Ctrl+T",         self._show_converter))
         tm.addAction(self._act("MOSFET Physics",    "Ctrl+M",         self._show_mosfet_simulator))
+        tm.addAction(self._act("Analog MOSFET Solver", "Ctrl+Shift+M", self._show_analog_mosfet_solver))
         tm.addAction(self._act("74xx IC Manual",    "Ctrl+Shift+D",   lambda: self._show_ic_manual("7408")))
         tm.addSeparator()
         tm.addAction(self._act("AI Assistant",      "Ctrl+I",         self._toggle_chatbot))
@@ -1081,6 +1084,9 @@ class MainWindow(QMainWindow):
     def _show_mosfet_simulator(self):
         MosfetSimulatorDialog(parent=self).exec_()
 
+    def _show_analog_mosfet_solver(self):
+        AnalogMosfetSolverDialog(parent=self).exec_()
+
     def _show_ic_manual(self, target_ic="7408"):
         ICDatasheetDialog(target_ic=target_ic, main_window=self, parent=self).exec_()
 
@@ -1179,7 +1185,8 @@ class MainWindow(QMainWindow):
             "• <b>Configurable Bus Display:</b> Parallel bus multi-radix readout (2 to 16 bits, Hex/Oct/BCD/Signed).<br>"
             "• <b>Bidirectional Verilog:</b> Synthesize schematics to HDL and import Verilog code to canvas.<br>"
             "• <b>Virtual 74xx DIP ICs:</b> Realistic pinouts, power rail verification, and complete datasheets.<br>"
-            "• <b>Semiconductor Physics:</b> Interactive 2D MOSFET cross-section & electron drift animation.<br><br>"
+            "• <b>Semiconductor Physics:</b> Interactive 2D MOSFET cross-section & electron drift animation.<br>"
+            "• <b>Analog MOSFET Solver:</b> Continuous Q-point analysis, AC small-signal gains, and step-by-step math derivations.<br><br>"
             "<b>Controls:</b><br>"
             "• <b>Pop-down Buttons:</b> Click category ▾ to insert any component at center<br>"
             "• <b>Click Pin ➔ Pin:</b> Connect wires (Green=Out, Blue=In)<br>"

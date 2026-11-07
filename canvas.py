@@ -325,6 +325,24 @@ class CircuitScene(QGraphicsScene):
         main_win = self.views()[0].window() if self.views() else None
         ICDatasheetDialog(target_ic=ic_type, main_window=main_win, parent=main_win).exec_()
 
+    def _open_analog_mosfet_solver(self, gate):
+        from analog_mosfet_solver import AnalogMosfetSolverDialog
+        main_win = self.views()[0].window() if self.views() else None
+        dlg = AnalogMosfetSolverDialog(parent=main_win)
+        if getattr(gate, 'gate_type', None) == 'PMOS':
+            dlg.radio_pmos.setChecked(True)
+        else:
+            dlg.radio_nmos.setChecked(True)
+        dlg.exec_()
+
+    def _open_mosfet_simulator(self, gate):
+        from mosfet_simulator import MosfetSimulatorDialog
+        main_win = self.views()[0].window() if self.views() else None
+        dlg = MosfetSimulatorDialog(parent=main_win)
+        if hasattr(dlg, 'radio_pmos') and getattr(gate, 'gate_type', None) == 'PMOS':
+            dlg.radio_pmos.setChecked(True)
+        dlg.exec_()
+
     def _remove_wire(self, wire):
         if getattr(self, 'undo_stack', None) is not None:
             self.undo_stack.push(DeleteWireCommand(self, wire, "Delete Wire"))
@@ -386,6 +404,12 @@ class CircuitScene(QGraphicsScene):
                 menu.addSeparator()
                 menu.addAction(QAction("📖 Open IC Datasheet / Pinout Manual...", menu,
                     triggered=lambda chk=False, g=item: self._open_ic_manual(g.ic_type)))
+            elif getattr(item, 'gate_type', None) in ('NMOS', 'PMOS'):
+                menu.addSeparator()
+                menu.addAction(QAction("📐 Open Analog Biasing & Problem Solver...", menu,
+                    triggered=lambda chk=False, g=item: self._open_analog_mosfet_solver(g)))
+                menu.addAction(QAction("🔬 Inspect Semiconductor Cross-Section...", menu,
+                    triggered=lambda chk=False, g=item: self._open_mosfet_simulator(g)))
             elif isinstance(item, RadixDisplayBlock) or item.gate_type in ('RADIX_DISPLAY', 'BUS_CONVERTER'):
                 menu.addSeparator()
                 # Multi-Radix Mode Submenu
