@@ -133,8 +133,8 @@ python-pbl/
 ### Step 1: Clone the Repository
 Open your terminal (or Command Prompt / PowerShell) and run:
 ```bash
-git clone https://github.com/<your-username>/<your-repo-name>.git
-cd <your-repo-name>
+git clone https://github.com/NISCHALNBANGERA/DIGITAL---ELECTRONICS.git
+cd DIGITAL---ELECTRONICS
 ```
 
 ### Step 2: Create a Virtual Environment (Recommended)
